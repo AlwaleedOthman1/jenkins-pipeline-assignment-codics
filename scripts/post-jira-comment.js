@@ -38,7 +38,9 @@ const payload = JSON.stringify({
   }
 });
 
-const url = new URL(`${baseUrl}/rest/api/3/issue/${issueKey}/comment`);
+const url = new URL(`${baseUrl}/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`);
+
+console.log(`Posting Jira comment to ${baseUrl}/browse/${issueKey}`);
 
 const request = https.request(
   url,
@@ -62,6 +64,7 @@ const request = https.request(
       if (response.statusCode < 200 || response.statusCode >= 300) {
         console.error(`Jira comment failed with HTTP ${response.statusCode}`);
         console.error(body);
+        console.error('Check JIRA_BASE_URL, JIRA_ISSUE, and whether the Jira credential user can browse and comment on this issue.');
         process.exit(1);
       }
 

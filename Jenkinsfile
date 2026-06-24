@@ -1,14 +1,16 @@
 def jiraRestComment(String message) {
-    withCredentials([usernamePassword(
-        credentialsId: "${env.JIRA_CREDS}",
-        usernameVariable: 'JIRA_USER',
-        passwordVariable: 'JIRA_TOKEN'
-    )]) {
-        withEnv(["JIRA_COMMENT=${message}"]) {
-            if (isUnix()) {
-                sh 'node scripts/post-jira-comment.js'
-            } else {
-                bat 'node scripts\\post-jira-comment.js'
+    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+        withCredentials([usernamePassword(
+            credentialsId: "${env.JIRA_CREDS}",
+            usernameVariable: 'JIRA_USER',
+            passwordVariable: 'JIRA_TOKEN'
+        )]) {
+            withEnv(["JIRA_COMMENT=${message}"]) {
+                if (isUnix()) {
+                    sh 'node scripts/post-jira-comment.js'
+                } else {
+                    bat 'node scripts\\post-jira-comment.js'
+                }
             }
         }
     }
