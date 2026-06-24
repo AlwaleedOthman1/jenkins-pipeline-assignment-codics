@@ -33,9 +33,18 @@ docker run -p 3000:3000 yourdockerhubusername/devops-assignment-app:latest
 Before running the pipeline, update these values in `Jenkinsfile`:
 
 - `JIRA_ISSUE`: your Jira issue key, for example `DEVOPS-1`
-- `JIRA_SITE`: your Jira Cloud site, for example `your-site.atlassian.net`
+- `JIRA_BASE_URL`: your Jira Cloud URL, for example `https://your-site.atlassian.net`
+- `JIRA_SITE`: your Jira Cloud site for Jenkins build info, for example `your-site.atlassian.net`
+- `JIRA_CREDS`: Jenkins credential ID for Jira Cloud, expected as `jira-cloud`
 - `DOCKER_IMAGE`: your Docker Hub image, for example `yourdockerhubusername/devops-assignment-app`
 - `DOCKER_CREDS`: Jenkins credential ID for Docker Hub, expected as `dockerhub`
+
+Create the `jira-cloud` Jenkins credential as:
+
+- Kind: Username with password
+- Username: your Atlassian account email
+- Password: Atlassian API token
+- ID: `jira-cloud`
 
 Required Jenkins plugins:
 

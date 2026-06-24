@@ -1,9 +1,27 @@
+def jiraRestComment(String message) {
+    withCredentials([usernamePassword(
+        credentialsId: "${env.JIRA_CREDS}",
+        usernameVariable: 'JIRA_USER',
+        passwordVariable: 'JIRA_TOKEN'
+    )]) {
+        withEnv(["JIRA_COMMENT=${message}"]) {
+            if (isUnix()) {
+                sh 'node scripts/post-jira-comment.js'
+            } else {
+                bat 'node scripts\\post-jira-comment.js'
+            }
+        }
+    }
+}
+
 pipeline {
     agent any
 
     environment {
         JIRA_ISSUE = 'DEVOPS-1'
-        JIRA_SITE = 'https://waleedo020.atlassian.net/'
+        JIRA_BASE_URL = 'https://waleedo020.atlassian.net'
+        JIRA_SITE = 'waleedo020.atlassian.net'
+        JIRA_CREDS = 'jira-cloud'
         DOCKER_IMAGE = 'theboss123/devops-assignment-app'
         DOCKER_CREDS = 'dockerhub'
     }
@@ -22,8 +40,9 @@ pipeline {
         stage('Jira Update - Build Started') {
             steps {
                 echo "Build started for ${env.JIRA_ISSUE}"
-                jiraComment issueKey: "${env.JIRA_ISSUE}",
-                            body: "Jenkins build started: ${env.BUILD_URL}"
+                script {
+                    jiraRestComment("Jenkins build started: ${env.BUILD_URL}")
+                }
             }
         }
 
@@ -98,13 +117,15 @@ pipeline {
 
     post {
         success {
-            jiraComment issueKey: "${env.JIRA_ISSUE}",
-                        body: "Jenkins build SUCCESS. Docker image pushed: ${env.DOCKER_IMAGE}:latest"
+            script {
+                jiraRestComment("Jenkins build SUCCESS. Docker image pushed: ${env.DOCKER_IMAGE}:latest")
+            }
         }
 
         failure {
-            jiraComment issueKey: "${env.JIRA_ISSUE}",
-                        body: "Jenkins build FAILED. Check console: ${env.BUILD_URL}"
+            script {
+                jiraRestComment("Jenkins build FAILED. Check console: ${env.BUILD_URL}")
+            }
         }
     }
 }
