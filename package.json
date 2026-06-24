@@ -1,0 +1,21 @@
+{
+  "name": "devops-assignment-app",
+  "version": "1.0.0",
+  "description": "Simple Node.js app for Jenkins, Jira, Docker, and JMeter pipeline testing.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "jenkins",
+    "docker",
+    "jira",
+    "devops"
+  ],
+  "author": "",
+  "license": "MIT"
+}
