@@ -80,10 +80,7 @@ pipeline {
                     if (isUnix()) {
                         sh "docker build -t ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} -t ${env.DOCKER_IMAGE}:latest ."
                     } else {
-                        powershell '''
-                        docker build -t "${env:DOCKER_IMAGE}:${env:BUILD_NUMBER}" -t "${env:DOCKER_IMAGE}:latest" .
-                        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                        '''
+                        bat "docker build -t %DOCKER_IMAGE%:%BUILD_NUMBER% -t %DOCKER_IMAGE%:latest ."
                     }
                 }
             }
@@ -105,13 +102,13 @@ pipeline {
                             docker push "$DOCKER_IMAGE:latest"
                             '''
                         } else {
-                            powershell '''
-                            $env:DOCKER_PASS | docker login -u $env:DOCKER_USER --password-stdin
-                            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                            docker push "${env:DOCKER_IMAGE}:${env:BUILD_NUMBER}"
-                            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                            docker push "${env:DOCKER_IMAGE}:latest"
-                            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                            bat '''
+                            powershell -NoProfile -Command "$env:DOCKER_PASS | docker login -u $env:DOCKER_USER --password-stdin"
+                            if errorlevel 1 exit /b 1
+                            docker push %DOCKER_IMAGE%:%BUILD_NUMBER%
+                            if errorlevel 1 exit /b 1
+                            docker push %DOCKER_IMAGE%:latest
+                            if errorlevel 1 exit /b 1
                             '''
                         }
                     }
