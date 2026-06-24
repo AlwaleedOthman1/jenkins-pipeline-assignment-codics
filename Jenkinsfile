@@ -68,6 +68,7 @@ pipeline {
                     script {
                         if (isUnix()) {
                             sh '''
+                            set -e
                             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                             docker push "$DOCKER_IMAGE:$BUILD_NUMBER"
                             docker push "$DOCKER_IMAGE:latest"
@@ -75,8 +76,11 @@ pipeline {
                         } else {
                             bat '''
                             echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                            if errorlevel 1 exit /b 1
                             docker push %DOCKER_IMAGE%:%BUILD_NUMBER%
+                            if errorlevel 1 exit /b 1
                             docker push %DOCKER_IMAGE%:latest
+                            if errorlevel 1 exit /b 1
                             '''
                         }
                     }
