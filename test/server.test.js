@@ -32,7 +32,7 @@ test('GET / returns app status', async () => {
   }
 });
 
-test('GET /health returns healthy status', async () => {
+test('GET /health returns healthy status. ', async () => {
   const app = await startTestServer();
 
   try {
