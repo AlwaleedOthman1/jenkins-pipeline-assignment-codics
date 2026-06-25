@@ -27,6 +27,7 @@ pipeline {
         JIRA_BASE_URL = 'https://waleedo020.atlassian.net'
         JIRA_SITE = 'waleedo020.atlassian.net'
         JIRA_CREDS = 'jira-cloud'
+        JMETER_VERSION = '5.6.3'
         DOCKER_IMAGE = 'theboss123/devops-assignment-app'
         DOCKER_CREDS = 'dockerhub'
     }
@@ -86,6 +87,123 @@ pipeline {
             }
         }
 
+        stage('Prepare JMeter') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh '''
+                        set -e
+                        JMETER_DIR="tools/apache-jmeter-${JMETER_VERSION}"
+                        JMETER_BIN="$JMETER_DIR/bin/jmeter"
+
+                        if [ ! -x "$JMETER_BIN" ]; then
+                            mkdir -p tools
+                            curl -L "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz" -o "tools/apache-jmeter-${JMETER_VERSION}.tgz"
+                            tar -xzf "tools/apache-jmeter-${JMETER_VERSION}.tgz" -C tools
+                        fi
+
+                        "$JMETER_BIN" --version
+                        '''
+                    } else {
+                        powershell '''
+                        $ErrorActionPreference = 'Stop'
+                        $jmeterDir = "tools/apache-jmeter-$env:JMETER_VERSION"
+                        $jmeterBin = Join-Path $jmeterDir 'bin/jmeter.bat'
+
+                        if (-not (Test-Path $jmeterBin)) {
+                            New-Item -ItemType Directory -Force -Path 'tools' | Out-Null
+                            $zipPath = "tools/apache-jmeter-$env:JMETER_VERSION.zip"
+                            $url = "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$env:JMETER_VERSION.zip"
+                            Invoke-WebRequest -Uri $url -OutFile $zipPath
+                            Expand-Archive -Path $zipPath -DestinationPath 'tools' -Force
+                        }
+
+                        & $jmeterBin --version
+                        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Run JMeter Load Test') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh '''
+                        set -e
+                        rm -rf reports/jmeter/html reports/jmeter/results.jtl
+                        mkdir -p reports/jmeter
+
+                        node src/server.js > reports/jmeter/app.out.log 2> reports/jmeter/app.err.log &
+                        APP_PID=$!
+                        trap 'kill $APP_PID || true' EXIT
+
+                        for i in $(seq 1 15); do
+                            if curl -fsS http://localhost:3000/health > /dev/null; then
+                                break
+                            fi
+                            sleep 2
+                        done
+
+                        curl -fsS http://localhost:3000/health > /dev/null
+                        tools/apache-jmeter-${JMETER_VERSION}/bin/jmeter -n -t test/load-test.jmx -l reports/jmeter/results.jtl -e -o reports/jmeter/html
+                        '''
+                    } else {
+                        powershell '''
+                        $ErrorActionPreference = 'Stop'
+                        Remove-Item -Recurse -Force -Path 'reports/jmeter/html' -ErrorAction SilentlyContinue
+                        Remove-Item -Force -Path 'reports/jmeter/results.jtl' -ErrorAction SilentlyContinue
+                        New-Item -ItemType Directory -Force -Path 'reports/jmeter' | Out-Null
+
+                        $app = Start-Process -FilePath 'node' -ArgumentList 'src/server.js' -PassThru -WindowStyle Hidden -RedirectStandardOutput 'reports/jmeter/app.out.log' -RedirectStandardError 'reports/jmeter/app.err.log'
+
+                        try {
+                            $ready = $false
+                            for ($i = 0; $i -lt 15; $i++) {
+                                try {
+                                    $response = Invoke-WebRequest -Uri 'http://localhost:3000/health' -UseBasicParsing -TimeoutSec 2
+                                    if ($response.StatusCode -eq 200) {
+                                        $ready = $true
+                                        break
+                                    }
+                                } catch {
+                                    Start-Sleep -Seconds 2
+                                }
+                            }
+
+                            if (-not $ready) {
+                                throw 'Node app did not become ready at http://localhost:3000/health'
+                            }
+
+                            $jmeterBin = "tools/apache-jmeter-$env:JMETER_VERSION/bin/jmeter.bat"
+                            & $jmeterBin -n -t 'test/load-test.jmx' -l 'reports/jmeter/results.jtl' -e -o 'reports/jmeter/html'
+                            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                        } finally {
+                            if ($app -and -not $app.HasExited) {
+                                Stop-Process -Id $app.Id -Force
+                            }
+                        }
+                        '''
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'reports/jmeter/**/*', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'reports/jmeter/html',
+                        reportFiles: 'index.html',
+                        reportName: 'JMeter HTML Report'
+                    ])
+                    perfReport sourceDataFiles: 'reports/jmeter/results.jtl'
+                }
+            }
+        }
+
         stage('Push Docker Image to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(
@@ -113,13 +231,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-
-        stage('JMeter Report Placeholder') {
-            steps {
-                echo 'JMeter test plan is available at test/load-test.jmx.'
-                echo 'Install JMeter on the Jenkins agent before enabling automated load-test execution.'
             }
         }
     }

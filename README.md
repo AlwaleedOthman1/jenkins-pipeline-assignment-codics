@@ -73,3 +73,22 @@ A basic JMeter test plan is included at `test/load-test.jmx`. It targets:
 ```text
 http://localhost:3000/health
 ```
+
+The Jenkins pipeline downloads Apache JMeter 5.6.3 into the workspace if it is not already present, starts the Node.js app on `localhost:3000`, and runs:
+
+```powershell
+test/load-test.jmx
+```
+
+Jenkins publishes:
+
+- `reports/jmeter/results.jtl` through the Performance Plugin
+- `reports/jmeter/html/index.html` through HTML Publisher
+- all files under `reports/jmeter/` as archived artifacts
+
+Required Jenkins plugins:
+
+- HTML Publisher
+- Performance Plugin
+
+The Jenkins agent also needs Java available because JMeter runs on Java.
