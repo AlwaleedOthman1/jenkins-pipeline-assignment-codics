@@ -21,7 +21,6 @@ http://localhost:3000/health
 
 ## Docker
 
-Replace `yourdockerhubusername` with your Docker Hub username:
 
 ```powershell
 docker build -t yourdockerhubusername/devops-assignment-app:latest .
